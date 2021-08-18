@@ -20,7 +20,7 @@ namespace ex_comment
     class Program
     {
         public static HttpListener listener;
-        public static string url = "http://localhost:6974/";
+        public static string url = "http://127.0.0.1:6974/";
         public static int pageViews = 0;
         public static int requestCount = 0;
         public static List<KeyValuePair<int, List<Tuple<DateTime, string, string>>>> comments;
@@ -42,11 +42,32 @@ namespace ex_comment
                     runServer = false;
                 }
 
-                var result = string.Join("\r\n---------------------------------------\r\n",
-                    comments.Select(x => string.Join("\r\n", x.Value.Where(x =>
-                        x.Item3.Contains(HttpUtility.UrlDecode(req.Url.AbsolutePath).Substring(1))).Select(y => $"({x.Key}) [{y.Item2}] {y.Item3}"))).Where(x => x.Length > 0));
+                var search = HttpUtility.UrlDecode(req.Url.AbsolutePath).Substring(1).Split(" ");
+                var results = new List<Dictionary<string, object>>();
 
-                byte[] data = Encoding.UTF8.GetBytes(result);
+                foreach (var article in comments)
+                {
+                    foreach (var comment in article.Value)
+                    {
+                        if (search.All(x => comment.Item3.Contains(x)))
+                        {
+                            results.Add(new Dictionary<string, object>(new List<KeyValuePair<string, object>>() {
+                                new KeyValuePair<string, object>("id", article.Key),
+                                new KeyValuePair<string, object>("time", comment.Item1),
+                                new KeyValuePair<string, object>("author", comment.Item2.ToString()),
+                                new KeyValuePair<string, object>("body", comment.Item3.ToString()),
+                            }));
+                        }
+                    }
+                }
+
+                results = results.TakeLast(1000).Reverse().ToList();
+
+                // var result = string.Join("\r\n---------------------------------------\r\n",
+                //     comments.Select(x => string.Join("\r\n", x.Value.Where(x =>
+                //         x.Item3.Contains(HttpUtility.UrlDecode(req.Url.AbsolutePath).Substring(1))).Select(y => $"({x.Key}) [{y.Item2}] {y.Item3}"))).Where(x => x.Length > 0));
+
+                byte[] data = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(results));
                 resp.ContentType = "text/html";
                 resp.ContentEncoding = Encoding.UTF8;
                 resp.ContentLength64 = data.LongLength;
