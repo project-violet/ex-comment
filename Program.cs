@@ -42,14 +42,25 @@ namespace ex_comment
                     runServer = false;
                 }
 
-                var search = HttpUtility.UrlDecode(req.Url.AbsolutePath).Substring(1).Split(" ");
+                var decode = HttpUtility.UrlDecode(req.Url.AbsolutePath).Substring(1).Trim();
+                var searchAuthor = false;
+
+                if (decode.Contains("/"))
+                {
+                    var op = decode.Split("/")[0];
+                    if (op == "author")
+                        searchAuthor = true;
+                }
+
+                var search = decode.Split("/").Last().Split(" ");
                 var results = new List<Dictionary<string, object>>();
 
                 foreach (var article in comments)
                 {
                     foreach (var comment in article.Value)
                     {
-                        if (search.All(x => comment.Item3.Contains(x)))
+                        if ((!searchAuthor && search.All(x => comment.Item3.Contains(x))) ||
+                            (searchAuthor && comment.Item2.ToString() == search[0]))
                         {
                             results.Add(new Dictionary<string, object>(new List<KeyValuePair<string, object>>() {
                                 new KeyValuePair<string, object>("id", article.Key),
